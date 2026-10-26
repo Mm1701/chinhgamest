@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farm Save Editor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky top bar (load / download), tab strip, one panel of fields at a time. */
+:root{
+  --bg:#edf1ec; --panel:#fbfcfa; --ink:#1b2a22; --muted:#5d6e64; --line:#cfd8d0;
+  --accent:#2c7a4b; --accent-ink:#ffffff; --gold:#a8690f; --danger:#b3382c; --field:#ffffff;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121a15; --panel:#1a251e; --ink:#e4ece6; --muted:#93a59a; --line:#2f4036;
+  --accent:#58c07f; --accent-ink:#0d1a12; --gold:#e0a64a; --danger:#ef7b6e; --field:#101812; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121a15; --panel:#1a251e; --ink:#e4ece6; --muted:#93a59a; --line:#2f4036;
+  --accent:#58c07f; --accent-ink:#0d1a12; --gold:#e0a64a; --danger:#ef7b6e; --field:#101812; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);
+  padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0 10px;border-bottom:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+h1{font:700 22px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+h1 small{display:block;font:400 12px var(--mono);color:var(--muted);margin-top:4px;letter-spacing:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button,.btn{font:500 14px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  padding:8px 14px;border-radius:6px;cursor:pointer}
+button:hover,.btn:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button.danger{color:var(--danger)}
+button.sm{padding:4px 9px;font-size:13px}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:12px 0 0;border-bottom:1px solid var(--line)}
+nav.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 12px;color:var(--muted);white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-color:var(--accent);font-weight:600}
+main{padding-top:18px}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:48px 20px;text-align:center;background:var(--panel)}
+.drop.over{border-color:var(--accent)}
+.drop h2{font:700 20px var(--display);margin:0 0 8px}
+.drop p{color:var(--muted);margin:0 0 16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px 16px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld label,.lbl{font:500 12px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.fld small{color:var(--muted);font-size:12px}
+input[type=text],input[type=number],select{font:400 15px var(--mono);background:var(--field);color:var(--ink);border:1px solid var(--line);
+  border-radius:6px;padding:7px 9px;width:100%;min-width:0}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent)}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+section.card>h2{font:700 16px var(--display);margin:0 0 12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px}
+.checks label{display:flex;gap:8px;align-items:center;font-size:14px;min-width:0}
+.checks label span{overflow-wrap:anywhere}
+.money{color:var(--gold)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font:500 12px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+td input,td select{padding:4px 7px}
+.scroll{overflow-x:auto}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.slot{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--field);display:flex;flex-direction:column;gap:6px;min-width:0}
+.slot.empty{opacity:.6;border-style:dashed}
+.slot .nm{font-weight:600;overflow-wrap:anywhere}
+.slot .meta{font:400 12px var(--mono);color:var(--muted)}
+.slot .ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.slot .ctl input{width:84px}.slot .ctl select{width:auto}
+.results{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--field)}
+.results button{display:flex;width:100%;justify-content:space-between;gap:10px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;text-align:left}
+.results button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.results button span:last-child{font:12px var(--mono);opacity:.7}
+.hearts{display:flex;gap:2px;align-items:center}
+.hearts i{width:10px;height:10px;background:var(--line);clip-path:polygon(50% 100%,0 35%,15% 0,50% 22%,85% 0,100% 35%)}
+.hearts i.on{background:var(--danger)}
+.note{color:var(--muted);font-size:13px;margin:0 0 12px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:8px;font-size:14px;z-index:20;max-width:90vw}
+details summary{cursor:pointer;color:var(--muted);margin:10px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Farm Save Editor<small id="fileInfo">chưa mở file</small></h1>
+    <div class="actions">
+      <label class="btn" for="pick">Mở file save</label>
+      <input id="pick" type="file" hidden>
+      <button id="revert" disabled>Hoàn tác tất cả</button>
+      <button id="download" class="primary" disabled>Tải file đã sửa</button>
+    </div>
+  </header>
+  <div id="app"><main><div class="drop" id="drop">
+    <h2>Kéo thả file save vào đây</h2>
+    <p>Chọn file trong thư mục <code>%AppData%\StardewValley\Saves\&lt;tên_nông_trại&gt;\</code>, là file không có đuôi, trùng tên với thư mục (ví dụ <code>farm_452625311</code>). Mọi thứ xử lý ngay trên máy bạn, không gửi đi đâu.</p>
+    <label class="btn primary" for="pick">Chọn file</label>
+  </div></main></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const XSI='http://www.w3.org/2001/XMLSchema-instance';
+const LV=[0,100,380,770,1300,2150,3300,4800,6900,10000,15000];
+let doc=null,P=null,R=null,fileName='',origText='',tab='char',uid=0;
+
+/* ---------- catalog ---------- */
+const CATS={'-2':'Đá quý','-4':'Cá','-5':'Trứng','-6':'Sữa','-7':'Món ăn','-8':'Chế tạo','-12':'Khoáng vật','-15':'Kim loại','-16':'Vật liệu','-19':'Phân bón','-21':'Mồi','-26':'Đồ thủ công','-28':'Quái vật','-74':'Hạt giống','-75':'Rau','-79':'Trái cây','-80':'Hoa','-81':'Hái lượm','-999':'Khác'};
+const STATIC=[
+[60,'Emerald',-2],[62,'Aquamarine',-2],[64,'Ruby',-2],[66,'Amethyst',-2],[68,'Topaz',-2],[70,'Jade',-2],[72,'Diamond',-2],[74,'Prismatic Shard',-2],[82,'Fire Quartz',-2],[84,'Frozen Tear',-2],[86,'Earth Crystal',-2],
+[334,'Copper Bar',-15],[335,'Iron Bar',-15],[336,'Gold Bar',-15],[337,'Iridium Bar',-15],[338,'Refined Quartz',-15],[378,'Copper Ore',-15],[380,'Iron Ore',-15],[382,'Coal',-15],[384,'Gold Ore',-15],[386,'Iridium Ore',-15],
+[388,'Wood',-16],[390,'Stone',-16],[709,'Hardwood',-16],[330,'Clay',-16],[771,'Fiber',-16],
+[128,'Pufferfish',-4],[130,'Tuna',-4],[131,'Sardine',-4],[132,'Bream',-4],[136,'Largemouth Bass',-4],[137,'Smallmouth Bass',-4],[138,'Rainbow Trout',-4],[139,'Salmon',-4],[140,'Walleye',-4],[141,'Perch',-4],[142,'Carp',-4],[143,'Catfish',-4],[144,'Pike',-4],[145,'Sunfish',-4],[146,'Red Mullet',-4],[147,'Herring',-4],[148,'Eel',-4],[149,'Octopus',-4],[150,'Red Snapper',-4],[151,'Squid',-4],[156,'Ghostfish',-4],[158,'Stonefish',-4],[159,'Crimsonfish',-4],[160,'Angler',-4],[161,'Ice Pip',-4],[162,'Lava Eel',-4],[163,'Legend',-4],[164,'Sandfish',-4],[165,'Scorpion Carp',-4],
+[174,'Large Egg',-5],[176,'Egg',-5],[180,'Egg (Brown)',-5],[182,'Large Egg (Brown)',-5],[184,'Milk',-6],[186,'Large Milk',-6],
+[24,'Parsnip',-75],[188,'Green Bean',-75],[190,'Cauliflower',-75],[192,'Potato',-75],[250,'Kale',-75],[256,'Tomato',-75],[262,'Wheat',-75],[264,'Radish',-75],[266,'Red Cabbage',-75],[270,'Corn',-75],[272,'Eggplant',-75],[274,'Artichoke',-75],[276,'Pumpkin',-75],[278,'Bok Choy',-75],[280,'Yam',-75],[284,'Beet',-75],[300,'Amaranth',-75],[304,'Hops',-75],
+[252,'Rhubarb',-79],[254,'Melon',-79],[258,'Blueberry',-79],[260,'Hot Pepper',-79],[268,'Starfruit',-79],[282,'Cranberries',-79],[398,'Grape',-79],[400,'Strawberry',-79],[454,'Ancient Fruit',-79],[417,'Sweet Gem Berry',-79],[613,'Apple',-79],[634,'Apricot',-79],[635,'Orange',-79],[636,'Peach',-79],[637,'Pomegranate',-79],[638,'Cherry',-79],
+[376,'Poppy',-80],[421,'Sunflower',-80],[591,'Tulip',-80],[593,'Summer Spangle',-80],[595,'Fairy Rose',-80],[597,'Blue Jazz',-80],
+[16,'Wild Horseradish',-81],[18,'Daffodil',-81],[20,'Leek',-81],[22,'Dandelion',-81],[78,'Cave Carrot',-81],[257,'Morel',-81],[296,'Salmonberry',-81],[396,'Spice Berry',-81],[402,'Sweet Pea',-81],[404,'Common Mushroom',-81],[406,'Wild Plum',-81],[408,'Hazelnut',-81],[410,'Blackberry',-81],[412,'Winter Root',-81],[414,'Crystal Fruit',-81],[418,'Crocus',-81],[420,'Red Mushroom',-81],[422,'Purple Mushroom',-81],
+[472,'Parsnip Seeds',-74],[473,'Bean Starter',-74],[474,'Cauliflower Seeds',-74],[475,'Potato Seeds',-74],[476,'Garlic Seeds',-74],[477,'Kale Seeds',-74],[478,'Rhubarb Seeds',-74],[479,'Melon Seeds',-74],[480,'Tomato Seeds',-74],[481,'Blueberry Seeds',-74],[482,'Pepper Seeds',-74],[483,'Wheat Seeds',-74],[484,'Radish Seeds',-74],[485,'Red Cabbage Seeds',-74],[486,'Starfruit Seeds',-74],[487,'Corn Seeds',-74],[488,'Eggplant Seeds',-74],[489,'Artichoke Seeds',-74],[490,'Pumpkin Seeds',-74],[491,'Bok Choy Seeds',-74],[492,'Yam Seeds',-74],[493,'Cranberry Seeds',-74],[494,'Beet Seeds',-74],[495,'Spring Seeds',-74],[496,'Summer Seeds',-74],[497,'Fall Seeds',-74],[498,'Winter Seeds',-74],[499,'Ancient Seeds',-74],[628,'Cherry Sapling',-74],[629,'Apricot Sapling',-74],[630,'Orange Sapling',-74],[631,'Peach Sapling',-74],[632,'Pomegranate Sapling',-74],[633,'Apple Sapling',-74],
+[368,'Basic Fertilizer',-19],[369,'Quality Fertilizer',-19],[370,'Basic Retaining Soil',-19],[371,'Quality Retaining Soil',-19],[465,'Speed-Gro',-19],[466,'Deluxe Speed-Gro',-19],
+[286,'Cherry Bomb',-8],[287,'Bomb',-8],[288,'Mega Bomb',-8],[599,'Sprinkler',-8],[621,'Quality Sprinkler',-8],[645,'Iridium Sprinkler',-8],
+[303,'Pale Ale',-26],[306,'Mayonnaise',-26],[340,'Honey',-26],[342,'Pickles',-26],[344,'Jelly',-26],[346,'Beer',-26],[348,'Wine',-26],[350,'Juice',-26],[424,'Cheese',-26],[426,'Goat Cheese',-26],[428,'Cloth',-26],[432,'Truffle Oil',-26],
+[766,'Slime',-28],[767,'Bat Wing',-28],[768,'Solar Essence',-28],[769,'Void Essence',-28],
+[434,'Stardrop',-7],[194,'Fried Egg',-7],[195,'Omelet',-7],[196,'Salad',-7],[198,'Baked Fish',-7],[201,'Complete Breakfast',-7],[204,'Lucky Lunch',-7],[206,'Pizza',-7],[220,'Chocolate Cake',-7],[221,'Pink Cake',-7],[224,'Spaghetti',-7],[233,'Ice Cream',-7],[236,'Pumpkin Soup',-7],[237,'Super Meal',-7],[240,'Farmer\'s Lunch',-7],[241,'Survival Burger',-7],[243,'Miner\'s Treat',-7],[253,'Triple Shot Espresso',-7],[395,'Coffee',-7]
+];
+let catalog=[];
+function buildCatalog(){
+  const m=new Map();
+  for(const [id,name,cat] of STATIC) m.set(String(id),{id:String(id),name,cat:String(cat),price:0,edi:-300});
+  for(const idEl of doc.getElementsByTagName('itemId')){
+    const o=idEl.parentNode; if(!o||!/^\d+$/.test(idEl.textContent)) continue;
+    if(val(o,'bigCraftable')==='true') continue;
+    const name=val(o,'name'); if(!name||/^(Weeds|Stone)$/.test(name)&&false) continue;
+    const id=idEl.textContent; if(m.has(id)&&STATIC.some(s=>String(s[0])===id)) continue;
+    if(name==='Weeds') continue;
+    m.set(id,{id,name,cat:val(o,'category')||'0',price:+val(o,'price')||0,edi:val(o,'edibility')||'-300'});
+  }
+  catalog=[...m.values()].sort((a,b)=>a.name.localeCompare(b.name));
+}
+const OBJ_TPL=`<Item xsi:type="Object"><isLostItem>false</isLostItem><category>@CAT@</category><hasBeenInInventory>true</hasBeenInInventory><name>@NAME@</name><parentSheetIndex>@ID@</parentSheetIndex><itemId>@ID@</itemId><specialItem>false</specialItem><isRecipe>false</isRecipe><quality>@Q@</quality><stack>@N@</stack><SpecialVariable>0</SpecialVariable><tileLocation><X>0</X><Y>0</Y></tileLocation><owner>0</owner><type>Basic</type><canBeSetDown>true</canBeSetDown><canBeGrabbed>true</canBeGrabbed><isSpawnedObject>false</isSpawnedObject><questItem>false</questItem><isOn>true</isOn><fragility>0</fragility><price>@PRICE@</price><edibility>@EDI@</edibility><bigCraftable>false</bigCraftable><setOutdoors>false</setOutdoors><setIndoors>false</setIndoors><readyForHarvest>false</readyForHarvest><showNextIndex>false</showNextIndex><flipped>false</flipped><isLamp>false</isLamp><minutesUntilReady>0</minutesUntilReady><boundingBox><X>0</X><Y>0</Y><Width>0</Width><Height>0</Height><Location><X>0</X><Y>0</Y></Location><Size><X>0</X><Y>0</Y></Size></boundingBox><scale><X>0</X><Y>0</Y></scale><uses>0</uses><destroyOvernight>false</destroyOvernight></Item>`;
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function fragment(xml){
+  const d=new DOMParser().parseFromString(`<r xmlns:xsi="${XSI}">${xml}</r>`,'application/xml');
+  if(d.getElementsByTagName('parsererror').length) throw new Error('XML lỗi');
+  return doc.importNode(d.documentElement.firstElementChild,true);
+}
+function makeObject(it,stack,q){
+  return fragment(OBJ_TPL.replace(/@CAT@/g,esc(it.cat)).replace(/@NAME@/g,esc(it.name)).replace(/@ID@/g,esc(it.id))
+    .replace('@Q@',q).replace('@N@',stack).replace('@PRICE@',it.price||0).replace('@EDI@',esc(it.edi)));
+}
+
+/* ---------- helpers ---------- */
+const kid=(el,t)=>{for(const c of el.children) if(c.tagName===t) return c;return null};
+const val=(el,t)=>{const k=kid(el,t);return k?k.textContent:''};
+function setVal(el,t,v){let k=kid(el,t);if(!k){k=doc.createElement(t);el.appendChild(k)}k.textContent=v}
+function h(tag,attrs,...kids){
+  const e=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs||{})){
+    if(v==null||v===false) continue;
+    if(k.startsWith('on')) e[k]=v; else if(k==='value') e.value=v; else if(k==='checked') e.checked=v; else e.setAttribute(k,v===true?'':v);
+  }
+  for(const c of kids.flat()){ if(c==null||c===false) continue; e.append(c.nodeType?c:document.createTextNode(c)); }
+  return e;
+}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2600)}
+function num(parent,tag,label,o={}){
+  const id='f'+(uid++);
+  const i=h('input',{id,type:'number',value:val(parent,tag),min:o.min,max:o.max,step:o.step||1});
+  i.oninput=()=>{if(i.value!=='')setVal(parent,tag,i.value);o.after&&o.after(i.value)};
+  return h('div',{class:'fld'},h('label',{for:id},label),i,o.hint&&h('small',{},o.hint));
+}
+function txt(parent,tag,label){
+  const id='f'+(uid++);
+  const i=h('input',{id,type:'text',value:val(parent,tag)});
+  i.oninput=()=>setVal(parent,tag,i.value);
+  return h('div',{class:'fld'},h('label',{for:id},label),i);
+}
+function sel(parent,tag,label,opts,after){
+  const id='f'+(uid++);
+  const s=h('select',{id},opts.map(([v,t])=>h('option',{value:v},t)));
+  s.value=val(parent,tag);
+  s.onchange=()=>{setVal(parent,tag,s.value);after&&after(s.value)};
+  return h('div',{class:'fld'},h('label',{for:id},label),s);
+}
+function flag(parent,tag,label){
+  const c=h('input',{type:'checkbox',checked:val(parent,tag)==='true'});
+  c.onchange=()=>setVal(parent,tag,c.checked?'true':'false');
+  return h('label',{},c,h('span',{},label));
+}
+const card=(title,...c)=>h('section',{class:'card'},h('h2',{},title),...c);
+
+/* ---------- tabs ---------- */
+const TABS=[['char','Nhân vật'],['skill','Kỹ năng'],['inv','Ba lô'],['friend','Quan hệ'],['world','Thế giới'],['recipe','Công thức'],['stats','Thống kê'],['adv','Nâng cao']];
+function render(){
+  const app=document.getElementById('app');
+  const nav=h('nav',{class:'tabs',role:'tablist'},TABS.map(([k,t])=>h('button',{role:'tab','aria-selected':k===tab,onclick:()=>{tab=k;render()}},t)));
+  const main=h('main',{});
+  ({char:tChar,skill:tSkill,inv:tInv,friend:tFriend,world:tWorld,recipe:tRecipe,stats:tStats,adv:tAdv})[tab](main);
+  app.replaceChildren(nav,main);
+}
+
+/* ---------- Nhân vật ---------- */
+function tChar(m){
+  m.append(card('Thông tin & tiền',
+    h('div',{class:'grid'},
+      txt(P,'name','Tên nhân vật'),txt(P,'farmName','Tên nông trại'),
+      num(P,'money','Tiền (g)',{min:0,max:2147483647}),
+      num(P,'totalMoneyEarned','Tổng tiền đã kiếm',{min:0,max:2147483647}),
+      num(P,'qiGems','Qi Gems',{min:0,max:9999}),
+      num(P,'clubCoins','Club Coins',{min:0,max:2147483647})),
+    h('div',{class:'row',style:'margin-top:12px'},
+      h('button',{onclick:()=>{setVal(P,'money','99999999');render();toast('Tiền = 99,999,999')}},'Tiền 99.999.999'),
+      h('button',{onclick:()=>{setVal(P,'qiGems','9999');render()}},'Qi Gems 9999'))));
+  m.append(card('Sức khỏe & thể lực',
+    h('div',{class:'grid'},
+      num(P,'maxHealth','Máu tối đa',{min:1,max:9999}),num(P,'health','Máu hiện tại',{min:1,max:9999}),
+      num(P,'maxStamina','Thể lực tối đa',{min:1,max:9999}),num(P,'stamina','Thể lực hiện tại',{min:1,max:9999}),
+      sel(P,'maxItems','Số ô ba lô',[[12,'12'],[24,'24'],[36,'36']],resizeInv)),
+    h('div',{class:'row',style:'margin-top:12px'},
+      h('button',{onclick:()=>{setVal(P,'maxHealth','500');setVal(P,'health','500');setVal(P,'maxStamina','1000');setVal(P,'stamina','1000');render();toast('Đã đặt máu 500, thể lực 1000')}},'Máu 500 / Thể lực 1000'))));
+  m.append(card('Nâng cấp',
+    h('div',{class:'grid'},
+      sel(P,'houseUpgradeLevel','Nhà',[[0,'Cấp 0'],[1,'Cấp 1 (bếp)'],[2,'Cấp 2'],[3,'Cấp 3']]),
+      sel(P,'trashCanLevel','Thùng rác',[[0,'Thường'],[1,'Đồng'],[2,'Sắt'],[3,'Vàng'],[4,'Iridium']]))));
+  const w=[['hasRustyKey','Chìa khóa gỉ'],['hasSkullKey','Chìa khóa Đầu lâu'],['hasMagicInk','Mực ma thuật'],['hasMagnifyingGlass','Kính lúp'],['hasDarkTalisman','Bùa tối'],['hasSpecialCharm','Bùa may mắn đặc biệt'],['hasClubCard','Thẻ Club'],['HasTownKey','Chìa khóa thị trấn'],['canUnderstandDwarves','Hiểu tiếng Người lùn'],['hasUnlockedSkullDoor','Mở cửa Hang Đầu lâu']];
+  m.append(card('Vật phẩm đặc biệt',h('div',{class:'checks'},w.map(([t,l])=>flag(P,t,l)))));
+}
+/* ---------- Kỹ năng ---------- */
+const SK=[['farmingLevel',0,'Nông nghiệp'],['fishingLevel',1,'Câu cá'],['foragingLevel',2,'Hái lượm'],['miningLevel',3,'Khai thác'],['combatLevel',4,'Chiến đấu'],['luckLevel',5,'May mắn']];
+const PROF={0:'Rancher',1:'Tiller',2:'Coopmaster',3:'Shepherd',4:'Artisan',5:'Agriculturist',6:'Fisher',7:'Trapper',8:'Angler',9:'Pirate',10:'Mariner',11:'Luremaster',12:'Forester',13:'Gatherer',14:'Lumberjack',15:'Tapper',16:'Botanist',17:'Tracker',18:'Miner',19:'Geologist',20:'Blacksmith',21:'Prospector',22:'Excavator',23:'Gemologist',24:'Fighter',25:'Scout',26:'Brute',27:'Defender',28:'Acrobat',29:'Desperado'};
+function setLevel(i,lv){
+  const xp=kid(P,'experiencePoints'); while(xp.children.length<6){const e=doc.createElement('int');e.textContent='0';xp.appendChild(e)}
+  xp.children[i].textContent=String(LV[lv]);
+}
+function tSkill(m){
+  const xp=kid(P,'experiencePoints');
+  const rows=SK.map(([tag,i,label])=>{
+    const lvIn=h('input',{type:'number',min:0,max:10,value:val(P,tag),'aria-label':label+' cấp'});
+    const xpIn=h('input',{type:'number',min:0,value:xp.children[i]?xp.children[i].textContent:'0','aria-label':label+' XP'});
+    lvIn.oninput=()=>{let v=Math.max(0,Math.min(10,+lvIn.value||0));setVal(P,tag,v);setLevel(i,v);xpIn.value=LV[v]};
+    xpIn.oninput=()=>{xp.children[i].textContent=xpIn.value||'0'};
+    return h('tr',{},h('td',{},label),h('td',{},lvIn),h('td',{},xpIn));
+  });
+  m.append(card('Cấp kỹ năng',h('p',{class:'note'},'Đổi cấp sẽ tự đặt XP về mốc của cấp đó. Đổi cấp lên 5 hoặc 10 thì nhớ chọn nghề bên dưới.'),
+    h('div',{class:'scroll'},h('table',{},h('thead',{},h('tr',{},h('th',{},'Kỹ năng'),h('th',{},'Cấp (0-10)'),h('th',{},'XP'))),h('tbody',{},rows))),
+    h('div',{class:'row',style:'margin-top:12px'},h('button',{onclick:()=>{SK.forEach(([t,i])=>{setVal(P,t,10);setLevel(i,10)});render();toast('Tất cả kỹ năng cấp 10')}},'Tất cả cấp 10'))));
+  const pr=kid(P,'professions');
+  const has=()=>new Set([...pr.children].map(c=>+c.textContent));
+  const groups=[['Nông nghiệp',0],['Câu cá',6],['Hái lượm',12],['Khai thác',18],['Chiến đấu',24]];
+  m.append(card('Nghề nghiệp',groups.map(([g,s])=>h('div',{style:'margin-bottom:10px'},h('div',{class:'lbl'},g),
+    h('div',{class:'checks'},Array.from({length:6},(_,k)=>{const id=s+k;
+      const c=h('input',{type:'checkbox',checked:has().has(id)});
+      c.onchange=()=>{ if(c.checked){const e=doc.createElement('int');e.textContent=id;pr.appendChild(e)} else for(const e of [...pr.children]) if(+e.textContent===id) e.remove(); };
+      return h('label',{},c,h('span',{},PROF[id]));}))))));
+}
+/* ---------- Ba lô ---------- */
+const itemsEl=()=>kid(P,'items');
+const isNil=e=>e.getAttributeNS(XSI,'nil')==='true';
+function nilItem(){const e=doc.createElement('Item');e.setAttributeNS(XSI,'xsi:nil','true');return e}
+function resizeInv(){
+  const n=+val(P,'maxItems'),it=itemsEl();
+  while(it.children.length<n) it.appendChild(nilItem());
+  while(it.children.length>n&&isNil(it.lastElementChild)) it.lastElementChild.remove();
+  if(tab==='inv') render();
+}
+let pickItem=null,pickQ='0',pickN=1,pickSlot='auto',query='';
+function tInv(m){
+  const it=itemsEl();
+  const slots=[...it.children].map((e,idx)=>{
+    if(isNil(e)) return h('div',{class:'slot empty'},h('div',{class:'meta'},'Ô '+(idx+1)),h('div',{class:'nm'},'(trống)'));
+    const type=e.getAttributeNS(XSI,'type')||'Item',name=val(e,'name')||val(e,'itemId');
+    const ctl=h('div',{class:'ctl'});
+    if(kid(e,'stack')){
+      const s=h('input',{type:'number',min:1,max:999,value:val(e,'stack'),'aria-label':'Số lượng ô '+(idx+1)});
+      s.oninput=()=>{if(s.value!=='')setVal(e,'stack',s.value)};
+      ctl.append(s);
+    }
+    if(type==='Object'&&kid(e,'quality')){
+      const q=h('select',{'aria-label':'Chất lượng ô '+(idx+1)},[[0,'Thường'],[1,'Bạc ★'],[2,'Vàng ★'],[4,'Iridium ★']].map(([v,t])=>h('option',{value:v},t)));
+      q.value=val(e,'quality');q.onchange=()=>setVal(e,'quality',q.value);ctl.append(q);
+    }
+    if(kid(e,'upgradeLevel')&&['Axe','Hoe','Pickaxe','WateringCan'].includes(type)){
+      const u=h('select',{'aria-label':'Nâng cấp ô '+(idx+1)},[[0,'Cơ bản'],[1,'Đồng'],[2,'Sắt'],[3,'Vàng'],[4,'Iridium']].map(([v,t])=>h('option',{value:v},t)));
+      u.value=val(e,'upgradeLevel');u.onchange=()=>setVal(e,'upgradeLevel',u.value);ctl.append(u);
+    }
+    ctl.append(h('button',{class:'sm danger',onclick:()=>{it.replaceChild(nilItem(),e);render()}},'Xóa'));
+    return h('div',{class:'slot'},h('div',{class:'meta'},`Ô ${idx+1} · ${type} · ${val(e,'itemId')}`),h('div',{class:'nm'},name),ctl);
+  });
+  m.append(card(`Ba lô (${it.children.length} ô)`,h('div',{class:'slots'},slots)));
+
+  /* add item */
+  const list=h('div',{class:'results',role:'listbox'});
+  const fill=()=>{
+    const q=query.trim().toLowerCase();
+    const res=catalog.filter(c=>!q||c.name.toLowerCase().includes(q)||c.id===q||(CATS[c.cat]||'').toLowerCase().includes(q)).slice(0,80);
+    list.replaceChildren(...res.map(c=>h('button',{'aria-pressed':pickItem&&pickItem.id===c.id,onclick:()=>{pickItem=c;fill()}},h('span',{},c.name),h('span',{},`${c.id} · ${CATS[c.cat]||c.cat}`))));
+    if(!res.length) list.append(h('div',{style:'padding:10px;color:var(--muted)'},'Không thấy. Dùng mục "Item tùy chọn" bên dưới.'));
+  };
+  const search=h('input',{type:'text',id:'q',placeholder:'Tìm theo tên (tiếng Anh), ID hoặc nhóm…',value:query});
+  search.oninput=()=>{query=search.value;fill()};
+  const n=h('input',{type:'number',id:'qn',min:1,max:999,value:pickN});n.oninput=()=>pickN=n.value;
+  const q=h('select',{id:'qq'},[[0,'Thường'],[1,'Bạc ★'],[2,'Vàng ★'],[4,'Iridium ★']].map(([v,t])=>h('option',{value:v},t)));q.value=pickQ;q.onchange=()=>pickQ=q.value;
+  const sl=h('select',{id:'qs'},h('option',{value:'auto'},'Ô trống đầu tiên'),[...it.children].map((e,i)=>h('option',{value:i},`Ô ${i+1}${isNil(e)?' (trống)':' (ghi đè)'}`)));sl.value=pickSlot;sl.onchange=()=>pickSlot=sl.value;
+  const doAdd=(item)=>{
+    const ch=[...it.children];
+    let idx=pickSlot==='auto'?ch.findIndex(isNil):+pickSlot;
+    if(idx<0){toast('Ba lô đầy. Tăng số ô hoặc chọn ô để ghi đè.');return}
+    it.replaceChild(makeObject(item,Math.max(1,+pickN||1),pickQ),ch[idx]);
+    render();toast(`Đã thêm ${item.name} vào ô ${idx+1}`);
+  };
+  const add=h('button',{class:'primary',onclick:()=>pickItem?doAdd(pickItem):toast('Chọn một item trong danh sách trước')},'Thêm vào ba lô');
+  const cid=h('input',{type:'text',id:'cid',placeholder:'ID số, ví dụ 74'}),cnm=h('input',{type:'text',id:'cnm',placeholder:'Tên item'}),cct=h('input',{type:'number',id:'cct',value:-999});
+  m.append(card('Thêm item',
+    h('p',{class:'note'},'Danh sách gồm item thông dụng cộng toàn bộ item có sẵn trong file save của bạn. Công cụ, vũ khí, nhẫn, mũ chưa thêm mới được, nhưng sửa cấp nâng cấp công cụ ở trên.'),
+    search,h('div',{style:'height:8px'}),list,
+    h('div',{class:'grid',style:'margin-top:12px'},h('div',{class:'fld'},h('label',{for:'qn'},'Số lượng'),n),h('div',{class:'fld'},h('label',{for:'qq'},'Chất lượng'),q),h('div',{class:'fld'},h('label',{for:'qs'},'Vào ô'),sl)),
+    h('div',{class:'row',style:'margin-top:12px'},add),
+    h('details',{},h('summary',{},'Item tùy chọn (nhập ID tay)'),
+      h('div',{class:'grid'},h('div',{class:'fld'},h('label',{for:'cid'},'ID'),cid),h('div',{class:'fld'},h('label',{for:'cnm'},'Tên'),cnm),h('div',{class:'fld'},h('label',{for:'cct'},'Category'),cct)),
+      h('div',{class:'row',style:'margin-top:10px'},h('button',{onclick:()=>{if(!/^\d+$/.test(cid.value)||!cnm.value){toast('Nhập ID số và tên');return}doAdd({id:cid.value,name:cnm.value,cat:String(cct.value),price:0,edi:-300})}},'Thêm item tùy chọn')))));
+  fill();
+}
+/* ---------- Quan hệ ---------- */
+const NPCS=['Abigail','Alex','Caroline','Clint','Demetrius','Dwarf','Elliott','Emily','Evelyn','George','Gus','Haley','Harvey','Jas','Jodi','Kent','Krobus','Leah','Leo','Lewis','Linus','Marnie','Maru','Pam','Penny','Pierre','Robin','Sam','Sandy','Sebastian','Shane','Vincent','Willy','Wizard'];
+function friendEntries(){return [...kid(P,'friendshipData').children].map(it=>({it,name:kid(it,'key').textContent,f:kid(kid(it,'value'),'Friendship')}))}
+function tFriend(m){
+  const fd=kid(P,'friendshipData');
+  const rows=friendEntries().map(({it,name,f})=>{
+    const pts=h('input',{type:'number',min:0,max:3750,value:val(f,'Points'),'aria-label':name+' điểm'});
+    const hearts=h('div',{class:'hearts'});
+    const draw=()=>hearts.replaceChildren(...Array.from({length:14},(_,i)=>h('i',{class:(+pts.value/250>i)?'on':''})));
+    pts.oninput=()=>{setVal(f,'Points',pts.value||0);draw()};draw();
+    const st=h('select',{'aria-label':name+' trạng thái'},['Friendly','Dating','Engaged','Married','Divorced','Roommate'].map(s=>h('option',{value:s},s)));
+    st.value=val(f,'Status');st.onchange=()=>setVal(f,'Status',st.value);
+    return h('tr',{},h('td',{},name),h('td',{},pts),h('td',{},hearts),h('td',{},st),h('td',{},h('button',{class:'sm',onclick:()=>{setVal(f,'Points',st.value==='Friendly'?2500:3500);render()}},'Max')));
+  });
+  const add=h('select',{id:'npc'},NPCS.filter(n=>!friendEntries().some(e=>e.name===n)).map(n=>h('option',{value:n},n)));
+  m.append(card('Độ thân thiết',h('p',{class:'note'},'250 điểm bằng 1 tim. Người chưa hẹn hò tối đa 8 tim, người dạng Dating/Married tối đa 14 tim. Nút Max đặt 10 tim, hoặc 14 tim nếu đang Dating/Married.'),
+    h('div',{class:'scroll'},h('table',{},h('thead',{},h('tr',{},['NPC','Điểm','Tim','Trạng thái',''].map(t=>h('th',{},t)))),h('tbody',{},rows))),
+    h('div',{class:'row',style:'margin-top:14px'},
+      h('button',{onclick:()=>{friendEntries().forEach(({f})=>setVal(f,'Points',2000));render();toast('Tất cả 8 tim')}},'Tất cả 8 tim'),
+      add,h('button',{onclick:()=>{if(!add.value)return;fd.appendChild(fragment(`<item><key><string>${add.value}</string></key><value><Friendship><Points>0</Points><GiftsThisWeek>0</GiftsThisWeek><GiftsToday>0</GiftsToday><TalkedToToday>false</TalkedToToday><ProposalRejected>false</ProposalRejected><Status>Friendly</Status><Proposer>0</Proposer><RoommateMarriage>false</RoommateMarriage></Friendship></value></item>`));render()}},'Thêm NPC'))));
+}
+/* ---------- Thế giới ---------- */
+const SEAS=['spring','summer','fall','winter'];
+function tWorld(m){
+  const sid=SEAS.indexOf(val(R,'currentSeason'));
+  m.append(card('Thời gian',h('div',{class:'grid'},
+    sel(R,'currentSeason','Mùa',[['spring','Xuân'],['summer','Hạ'],['fall','Thu'],['winter','Đông']],v=>setVal(P,'seasonForSaveGame',SEAS.indexOf(v))),
+    num(R,'dayOfMonth','Ngày (1-28)',{min:1,max:28,after:v=>setVal(P,'dayOfMonthForSaveGame',v)}),
+    num(R,'year','Năm',{min:1,max:999,after:v=>setVal(P,'yearForSaveGame',v)})),
+    h('p',{class:'note',style:'margin-top:10px'},'Mùa, ngày, năm cũng được ghi sang phần thông tin trên màn hình chọn save. Nếu đổi mùa/ngày, các cây trồng không tự đổi theo.')));
+  m.append(card('Thời tiết & may mắn',h('div',{class:'grid'},num(R,'dailyLuck','Vận may hôm nay (-0.1 đến 0.1)',{min:-0.1,max:0.1,step:0.001})),
+    h('div',{class:'checks',style:'margin-top:12px'},flag(R,'isRaining','Mưa'),flag(R,'isLightning','Sấm sét'),flag(R,'isSnowing','Tuyết'),flag(R,'isDebrisWeather','Gió/lá bay'))));
+  m.append(card('Khác',h('div',{class:'grid'},num(R,'goldenWalnuts','Golden Walnut đang có',{min:0}),num(R,'goldenWalnutsFound','Golden Walnut đã tìm',{min:0}),num(P,'deepestMineLevel','Tầng mỏ sâu nhất',{min:0,max:120}))));
+}
+/* ---------- Công thức ---------- */
+const COOK=['Fried Egg','Omelet','Salad','Cheese Cauliflower','Baked Fish','Parsnip Soup','Vegetable Medley','Complete Breakfast','Fried Calamari','Strange Bun','Lucky Lunch','Fried Mushroom','Pizza','Bean Hotpot','Glazed Yams','Carp Surprise','Hashbrowns','Pancakes','Salmon Dinner','Fish Taco','Crispy Bass','Pepper Poppers','Bread','Tom Kha Soup','Trout Soup','Chocolate Cake','Pink Cake','Rhubarb Pie','Cookies','Spaghetti','Fried Eel','Spicy Eel','Sashimi','Maki Roll','Tortilla','Red Plate','Eggplant Parmesan','Rice Pudding','Ice Cream','Blueberry Tart','Autumn\'s Bounty','Pumpkin Soup','Super Meal','Cranberry Sauce','Stuffing','Farmer\'s Lunch','Survival Burger','Dish O\' The Sea','Miner\'s Treat','Roots Platter','Triple Shot Espresso','Seafoam Pudding','Algae Soup','Pale Broth','Plum Pudding','Artichoke Dip','Stir Fry','Roasted Hazelnuts','Pumpkin Pie','Radish Salad','Fruit Salad','Blackberry Cobbler','Cranberry Candy','Bruschetta','Coleslaw','Fiddlehead Risotto','Poppyseed Muffin','Chowder','Fish Stew','Escargot','Lobster Bisque','Maple Bar','Crab Cakes','Shrimp Cocktail'];
+const CRAFT=['Wood Fence','Stone Fence','Iron Fence','Hardwood Fence','Gate','Chest','Torch','Wood Sign','Stone Sign','Scarecrow','Cherry Bomb','Bomb','Mega Bomb','Furnace','Charcoal Kiln','Preserves Jar','Keg','Cask','Cheese Press','Mayonnaise Machine','Loom','Oil Maker','Recycling Machine','Seed Maker','Lightning Rod','Bee House','Tapper','Heavy Tapper','Crystalarium','Worm Bin','Basic Fertilizer','Quality Fertilizer','Speed-Gro','Deluxe Speed-Gro','Basic Retaining Soil','Quality Retaining Soil','Sprinkler','Quality Sprinkler','Iridium Sprinkler','Wild Bait','Bait','Crab Pot','Cork Bobber','Spinner','Trap Bobber','Barbed Hook','Lead Bobber','Treasure Hunter','Dressed Spinner','Magnet','Mini-Jukebox','Campfire','Tub o\' Flowers','Staircase','Warp Totem: Farm','Warp Totem: Mountains','Warp Totem: Beach','Warp Totem: Desert','Rain Totem','Field Snack','Garden Pot','Marble Brazier','Wood Lamp-post','Iron Lamp-post','Skull Brazier'];
+function recipeBlock(tag,title,names){
+  const el=kid(P,tag);
+  const has=()=>new Set([...el.children].map(i=>kid(i,'key').textContent));
+  const known=has();
+  const all=[...new Set([...names,...known])];
+  const boxes=all.map(n=>{
+    const c=h('input',{type:'checkbox',checked:known.has(n)});
+    c.onchange=()=>{ if(c.checked){ if(!has().has(n)) el.appendChild(fragment(`<item><key><string>${esc(n)}</string></key><value><int>0</int></value></item>`)); }
+      else for(const i of [...el.children]) if(kid(i,'key').textContent===n) i.remove(); };
+    return h('label',{},c,h('span',{},n));
+  });
+  return card(`${title} (${known.size} đã có)`,h('div',{class:'row',style:'margin-bottom:12px'},
+    h('button',{onclick:()=>{const k=has();for(const n of all) if(!k.has(n)) el.appendChild(fragment(`<item><key><string>${esc(n)}</string></key><value><int>0</int></value></item>`));render()}},'Mở tất cả'),
+    h('button',{onclick:()=>{el.replaceChildren();render()}},'Xóa tất cả')),
+    h('div',{class:'checks'},boxes));
+}
+function tRecipe(m){m.append(h('p',{class:'note'},'Tên công thức dùng tên nội bộ tiếng Anh của game. Tên nào game không nhận sẽ bị bỏ qua.'),recipeBlock('cookingRecipes','Công thức nấu ăn',COOK),recipeBlock('craftingRecipes','Công thức chế tạo',CRAFT))}
+/* ---------- Thống kê ---------- */
+function tStats(m){
+  const vals=kid(kid(P,'stats'),'Values');
+  const rows=[...vals.children].map(it=>{
+    const v=kid(kid(it,'value'),'unsignedInt')||kid(it,'value').firstElementChild;
+    const i=h('input',{type:'number',min:0,value:v.textContent,'aria-label':kid(it,'key').textContent});
+    i.oninput=()=>{if(i.value!=='')v.textContent=i.value};
+    return h('tr',{},h('td',{style:'font-family:var(--mono)'},kid(it,'key').textContent),h('td',{},i));
+  });
+  m.append(card('Thống kê',h('div',{class:'scroll'},h('table',{},h('thead',{},h('tr',{},h('th',{},'Chỉ số'),h('th',{},'Giá trị'))),h('tbody',{},rows)))));
+}
+/* ---------- Nâng cao ---------- */
+let advQ='';
+function tAdv(m){
+  const out=h('div',{});
+  const draw=()=>{
+    const q=advQ.trim().toLowerCase();let n=0;const rows=[];
+    for(const [pn,par] of [['player',P],['root',R]]){
+      for(const c of par.children){
+        if(c.children.length) continue;
+        const key=pn+'.'+c.tagName; if(q&&!key.toLowerCase().includes(q)) continue;
+        if(++n>300) break;
+        const t=c.textContent;let inp;
+        if(t==='true'||t==='false'){inp=h('select',{'aria-label':key},h('option',{value:'true'},'true'),h('option',{value:'false'},'false'));inp.value=t;inp.onchange=()=>c.textContent=inp.value}
+        else{inp=h('input',{type:'text',value:t,'aria-label':key});inp.oninput=()=>c.textContent=inp.value}
+        rows.push(h('tr',{},h('td',{style:'font-family:var(--mono);font-size:13px;overflow-wrap:anywhere'},key),h('td',{},inp)));
+      }
+    }
+    out.replaceChildren(h('div',{class:'scroll'},h('table',{},h('thead',{},h('tr',{},h('th',{},'Trường'),h('th',{},'Giá trị'))),h('tbody',{},rows))),n>300?h('p',{class:'note'},'Chỉ hiện 300 dòng đầu, hãy lọc thêm.'):null);
+  };
+  const s=h('input',{type:'text',id:'advq',placeholder:'Lọc, ví dụ: money, level, has…',value:advQ});s.oninput=()=>{advQ=s.value;draw()};
+  m.append(card('Mọi trường đơn giản của nhân vật và thế giới',h('p',{class:'note'},'Sửa trực tiếp giá trị văn bản/số/true-false. Sửa sai có thể làm hỏng save, hãy giữ bản sao lưu.'),s,h('div',{style:'height:10px'}),out));
+  draw();
+}
+
+/* ---------- load / save ---------- */
+function load(text,name){
+  const d=new DOMParser().parseFromString(text,'application/xml');
+  if(d.getElementsByTagName('parsererror').length||d.documentElement.tagName!=='SaveGame'){toast('Đây không phải file save Stardew Valley hợp lệ.');return}
+  doc=d;P=kid(doc.documentElement,'player');R=doc.documentElement;fileName=name;origText=text;
+  buildCatalog();pickItem=null;pickSlot='auto';
+  document.getElementById('fileInfo').textContent=`${name} · ${val(P,'name')} · ${val(P,'farmName')} · v${val(P,'gameVersion')}`;
+  document.getElementById('download').disabled=false;document.getElementById('revert').disabled=false;
+  tab='char';render();toast('Đã mở file save');
+}
+function readFile(f){const r=new FileReader();r.onload=()=>load(r.result,f.name);r.readAsText(f,'utf-8')}
+function serialize(){return '<?xml version="1.0" encoding="utf-8"?>'+new XMLSerializer().serializeToString(doc.documentElement)}
+document.getElementById('pick').onchange=e=>{if(e.target.files[0])readFile(e.target.files[0]);e.target.value=''};
+document.getElementById('revert').onclick=()=>load(origText,fileName);
+document.getElementById('download').onclick=()=>{
+  const xml=serialize();
+  const a=h('a',{href:URL.createObjectURL(new Blob([xml],{type:'application/octet-stream'})),download:fileName});
+  document.body.append(a);a.click();a.remove();toast('Đã tải '+fileName+'. Nhớ sao lưu file gốc trước khi thay.');
+};
+const dz=document.getElementById('drop');
+['dragover','dragenter'].forEach(ev=>addEventListener(ev,e=>{e.preventDefault();dz&&dz.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>addEventListener(ev,e=>{e.preventDefault();dz&&dz.classList.remove('over')}));
+addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f)readFile(f)});
+</script>
+</body>
+</html>
